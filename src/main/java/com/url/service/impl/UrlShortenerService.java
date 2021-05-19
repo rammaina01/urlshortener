@@ -1,12 +1,14 @@
 package com.url.service.impl;
 
-import com.url.entity.UrlDto;
+import com.url.entity.UrlDetails;
 import com.url.exception.UrlAlreadyExistException;
 import com.url.model.Url;
 import com.url.repository.IUrlRepository;
-import com.url.service.IUrlService;
+import com.url.service.IUrlShortenerService;
 import com.url.util.MD5Has;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,34 +20,41 @@ import java.util.stream.Collectors;
 
 @Service
 @Transactional
-public class UrlService implements IUrlService {
+@Slf4j
+public class UrlShortenerService implements IUrlShortenerService {
 
-    private static final String baseurl = "http://localhost:8080/";
+    @Value("${base-url}")
+    private String baseurl;
+
     @Autowired
     IUrlRepository repository;
 
     @Override
     public Url createShortenUrl(Url logUrl) {
+
         String hashedString = MD5Has.getHashedString(logUrl.getUrl());
         Date d = new Date();
         String shortenUrl = hashedString.substring(0, 8);
-        Url u = new Url();
 
         if (!checkIfIdAvailable(shortenUrl)) {
-            UrlDto obj = new UrlDto(shortenUrl, baseurl + shortenUrl,
+            log.info("ShortUrl for {} for longUrl {}",shortenUrl ,logUrl.getUrl());
+            UrlDetails obj = new UrlDetails(shortenUrl, shortenUrl,
                     logUrl.getUrl(), 0, d, d);
             repository.save(obj);
-            u.setUrl(shortenUrl);
+
+            Url u = new Url();
+            Optional<UrlDetails> url =  repository.findById(shortenUrl);
+            u.setUrl(url.get().getShortUrl());
             return u;
         } else {
-            UrlDto urlDto = repository.findById(shortenUrl).get();
+            UrlDetails urlDto = repository.findById(shortenUrl).get();
             throw new UrlAlreadyExistException(HttpStatus.CONFLICT.value(),
                     "Url Already Exist : " + urlDto.getShortUrl(), HttpStatus.CONFLICT);
         }
     }
 
     private boolean checkIfIdAvailable(String shortenUrl) {
-        Optional<UrlDto> urlDto = repository.findById(shortenUrl);
+        Optional<UrlDetails> urlDto = repository.findById(shortenUrl);
         if (urlDto.isPresent()) {
             return true;
         }
@@ -54,11 +63,11 @@ public class UrlService implements IUrlService {
 
     @Override
     public Url getShortenUrl(String shortenUrl) {
-        Optional<UrlDto> urlDto = repository.findById(shortenUrl);
-        if (urlDto.isPresent()) {
+        Optional<UrlDetails> url = repository.findById(shortenUrl);
+        if (url.isPresent()) {
             Url u = new Url();
-            u.setUrl(urlDto.get().getLongUrl());
-            storeUsed(urlDto.get());
+            u.setUrl(url.get().getLongUrl());
+            storeUsed(url.get());
             return u;
         } else {
             throw new UrlAlreadyExistException(HttpStatus.BAD_REQUEST.value(),
@@ -66,7 +75,7 @@ public class UrlService implements IUrlService {
         }
     }
 
-    private void storeUsed(UrlDto urlDto) {
+    private void storeUsed(UrlDetails urlDto) {
         long count = urlDto.getUsedCount();
         urlDto.setUsedCount(count + 1);
         Date d = new Date();
@@ -75,7 +84,7 @@ public class UrlService implements IUrlService {
     }
 
     @Override
-    public List<UrlDto> getAllShortenUrls() {
+    public List<UrlDetails> getAllShortenUrls() {
         return repository.findAll().stream().collect(Collectors.toList());
     }
 }

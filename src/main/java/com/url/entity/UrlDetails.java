@@ -10,8 +10,8 @@ import java.util.Date;
 
 @NoArgsConstructor
 @Data
-@Document(collection = "url")
-public class UrlDto {
+@Document(collection = "url_details")
+public class UrlDetails {
     @Id
     private String id;
     private String shortUrl;
@@ -21,7 +21,7 @@ public class UrlDto {
     private Date updatedDt;
 
 
-    public UrlDto(String id, String shortUrl, String longUrl, long usedCount, Date createdDt, Date updatedDt) {
+    public UrlDetails(String id, String shortUrl, String longUrl, long usedCount, Date createdDt, Date updatedDt) {
         this.id = id;
         this.shortUrl = shortUrl;
         this.longUrl = longUrl;
